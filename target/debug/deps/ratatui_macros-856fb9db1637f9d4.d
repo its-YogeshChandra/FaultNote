@@ -1,0 +1,10 @@
+/Users/test/Documents/tools/faultnote/target/debug/deps/ratatui_macros-856fb9db1637f9d4.d: /Users/test/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ratatui-macros-0.7.0-beta.1/src/lib.rs /Users/test/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ratatui-macros-0.7.0-beta.1/src/layout.rs /Users/test/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ratatui-macros-0.7.0-beta.1/src/line.rs /Users/test/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ratatui-macros-0.7.0-beta.1/src/row.rs /Users/test/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ratatui-macros-0.7.0-beta.1/src/span.rs /Users/test/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ratatui-macros-0.7.0-beta.1/src/text.rs
+
+/Users/test/Documents/tools/faultnote/target/debug/deps/libratatui_macros-856fb9db1637f9d4.rmeta: /Users/test/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ratatui-macros-0.7.0-beta.1/src/lib.rs /Users/test/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ratatui-macros-0.7.0-beta.1/src/layout.rs /Users/test/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ratatui-macros-0.7.0-beta.1/src/line.rs /Users/test/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ratatui-macros-0.7.0-beta.1/src/row.rs /Users/test/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ratatui-macros-0.7.0-beta.1/src/span.rs /Users/test/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ratatui-macros-0.7.0-beta.1/src/text.rs
+
+/Users/test/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ratatui-macros-0.7.0-beta.1/src/lib.rs:
+/Users/test/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ratatui-macros-0.7.0-beta.1/src/layout.rs:
+/Users/test/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ratatui-macros-0.7.0-beta.1/src/line.rs:
+/Users/test/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ratatui-macros-0.7.0-beta.1/src/row.rs:
+/Users/test/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ratatui-macros-0.7.0-beta.1/src/span.rs:
+/Users/test/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ratatui-macros-0.7.0-beta.1/src/text.rs:
