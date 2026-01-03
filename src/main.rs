@@ -1,3 +1,4 @@
+//data struct that is being taken from user
 use std::io;
 
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
@@ -13,81 +14,32 @@ use ratatui::{
 
 #[derive(Debug, Default)]
 pub struct App {
-    counter: u8,
+    error: String,
+    problem: String,
+    fix: String,
     exit: bool,
 }
 
-//function for that
 impl App {
-    // function that run the application main loop until user quits
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
         while !self.exit {
             terminal.draw(|frame| self.draw(frame))?;
-            self.handle_events()?;
+            self.handle_event();
         }
         Ok(())
     }
 
     fn draw(&self, frame: &mut Frame) {
-        frame.render_widget(self, frame.area());
+        todo!()
     }
 
-    fn handle_events(&mut self) -> io::Result<()> {
-        match event::read()? {
-            Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
-                self.handle_key_events(key_event)
-            }
-            _ => {}
-        }
-        Ok(())
-    }
-
-    fn handle_key_events(&mut self, key_event: KeyEvent) {
-        match key_event.code {
-            KeyCode::Char('q') => self.exit(),
-            KeyCode::Left => self.decrement_counter(),
-            KeyCode::Right => self.increment_counter(),
-            _ => {}
-        }
-    }
-
-    fn exit(&mut self) {
-        self.exit = true;
-    }
-
-    fn decrement_counter(&mut self) {
-        self.counter -= 1;
-    }
-
-    fn increment_counter(&mut self) {
-        self.counter += 1;
-    }
+    fn handle_event(&self) {}
 }
 
-//render a frome
 impl Widget for &App {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let title = Line::from("Counter App Tutorial ".bold());
-        let instructions = Line::from(vec![
-            "Decrement".into(),
-            "<Left>".blue().bold(),
-            "Increment".into(),
-            "<Right>".blue().bold(),
-            "Quit".into(),
-            "<Q>".blue().bold(),
-        ]);
-        let block = Block::bordered()
-            .title(title.centered())
-            .title_bottom(instructions.centered())
-            .border_set(border::THICK);
-        let counter_text = Text::from(vec![Line::from(vec![
-            "Value: ".into(),
-            self.counter.to_string().cyan(),
-        ])]);
-        Paragraph::new(counter_text)
-            .centered()
-            .block(block)
-            .render(area, buf);
+        let title = Line::from("Fault Note".bold());
+        let block = Block::bordered().title(title.centered());
     }
 }
 
