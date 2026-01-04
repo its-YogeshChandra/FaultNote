@@ -42,6 +42,8 @@ impl Widget for &App {
         let block = Block::bordered().title(title.centered());
     }
 }
+//fix the issue to fix the issue
+fn figure() {}
 
 //main function to run --
 fn main() -> io::Result<()> {
