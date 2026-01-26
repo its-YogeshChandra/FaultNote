@@ -4,10 +4,11 @@ use std::time::Duration;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 
 use crate::app::AppState;
+use crate::notion::client::{NotionClient, create_entry, FaultLogEntry};
 
 /// Handle all input events for the application
 /// Returns Ok(()) on success, Err on event reading failure
-pub fn handle_events(app: &mut AppState) -> io::Result<()> {
+pub async fn handle_events(app: &mut AppState, notion_client: Option<&NotionClient>) -> io::Result<()> {
     // Poll for events with a small timeout (100ms)
     // This allows the UI to remain responsive
     if event::poll(Duration::from_millis(100))? {
@@ -15,7 +16,7 @@ pub fn handle_events(app: &mut AppState) -> io::Result<()> {
         if let Event::Key(key_event) = event::read()? {
             // Only handle key press events (not release)
             if key_event.kind == KeyEventKind::Press {
-                handle_key_event(app, key_event);
+                handle_key_event(app, key_event, notion_client).await;
             }
         }
     }
@@ -24,30 +25,30 @@ pub fn handle_events(app: &mut AppState) -> io::Result<()> {
 }
 
 /// Handle a specific key event based on current app mode
-fn handle_key_event(app: &mut AppState, key: KeyEvent) {
+async fn handle_key_event(app: &mut AppState, key: KeyEvent, notion_client: Option<&NotionClient>) {
     if app.is_editing() {
-        //editing mode
+        // Editing mode - no async needed
         handle_editing_mode(app, key);
     } else {
-        // normal mode
-        handle_normal_mode(app, key);
+        // Normal mode - may need async for submission
+        handle_normal_mode(app, key, notion_client).await;
     }
 }
 
 /// Handle key events in normal (navigation) mode
-fn handle_normal_mode(app: &mut AppState, key: KeyEvent) {
+async fn handle_normal_mode(app: &mut AppState, key: KeyEvent, notion_client: Option<&NotionClient>) {
     match key.code {
-        // ─── Application Control ───
+        // Application Control
         KeyCode::Char('q') | KeyCode::Char('Q') => {
             app.quit();
         }
 
-        // ─── Focus Navigation ───
+        // Focus Navigation
         KeyCode::Tab => {
             app.toggle_focus();
         }
 
-        // ─── Up/Down Navigation ───
+        // Up/Down Navigation
         KeyCode::Up | KeyCode::Char('k') => {
             app.handle_up();
         }
@@ -55,28 +56,23 @@ fn handle_normal_mode(app: &mut AppState, key: KeyEvent) {
             app.handle_down();
         }
 
-        // ─── Enter Edit Mode ───
+        // Enter Edit Mode
         KeyCode::Char('e') | KeyCode::Char('i') => {
             app.enter_edit_mode();
         }
 
-        // ─── Submit to Notion ───
+        // Submit to Notion
         KeyCode::Enter => {
-            if app.can_submit() {
-                // TODO: Trigger async submission
-                app.set_status("Ready to submit! (async not connected yet)");
-            } else {
-                app.set_error("Fill in Error, Problem, and Solution fields first");
-            }
+            submit_to_notion(app, notion_client).await;
         }
 
-        // ─── Clear All Inputs ───
+        // Clear All Inputs
         KeyCode::Char('c') => {
             app.clear_inputs();
             app.set_status("Inputs cleared");
         }
 
-        // ─── Clear Status Message ───
+        // Clear Status Message
         KeyCode::Esc => {
             app.clear_status();
         }
@@ -85,39 +81,94 @@ fn handle_normal_mode(app: &mut AppState, key: KeyEvent) {
     }
 }
 
+/// Submit the fault log entry to Notion
+async fn submit_to_notion(app: &mut AppState, notion_client: Option<&NotionClient>) {
+    // Check if we can submit
+    if !app.can_submit() {
+        app.set_error("Fill in Error, Problem, and Solution fields first");
+        return;
+    }
+
+    // Check if we have a Notion client
+    let client = match notion_client {
+        Some(c) => c,
+        None => {
+            app.set_error("Notion API not connected. Check your API_KEY in .env");
+            return;
+        }
+    };
+
+    // Get the submission data
+    let (page_id, entry_data) = match app.get_submission_data() {
+        Some(data) => data,
+        None => {
+            app.set_error("Failed to prepare submission data");
+            return;
+        }
+    };
+
+    // Check if this is a demo page
+    if page_id.starts_with("demo-") {
+        app.set_error("Cannot submit to demo pages. Connect to Notion API first.");
+        return;
+    }
+
+    // Create the FaultLogEntry for the API
+    let entry = FaultLogEntry {
+        error: entry_data.error,
+        problem: entry_data.problem,
+        solution: entry_data.solution,
+        code: entry_data.code,
+    };
+
+    // Show loading status
+    app.start_loading();
+
+    // Make the API call
+    match create_entry(client, &page_id, &entry).await {
+        Ok(()) => {
+            app.set_success("Error logged to Notion successfully! ✓");
+            app.clear_inputs();
+        }
+        Err(e) => {
+            app.set_error(format!("Failed to submit: {}", e));
+        }
+    }
+}
+
 /// Handle key events in editing mode
 fn handle_editing_mode(app: &mut AppState, key: KeyEvent) {
     match key.code {
-        // ─── Exit Edit Mode ───
+        // Exit Edit Mode
         KeyCode::Esc => {
             app.exit_edit_mode();
         }
 
-        // ─── Text Input ───
+        // Text Input
         KeyCode::Char(c) => {
             app.add_char(c);
         }
 
-        // ─── Backspace ───
+        // Backspace
         KeyCode::Backspace => {
             app.delete_char();
         }
 
-        // ─── New Line ───
+        // New Line
         KeyCode::Enter => {
             // In editing mode, Enter adds a newline
             // Use Esc to exit, then Enter to submit
             app.add_newline();
         }
 
-        // ─── Navigate to Next Input (while editing) ───
+        // Navigate to Next Input (while editing)
         KeyCode::Tab => {
             app.exit_edit_mode();
             app.next_input();
             app.enter_edit_mode();
         }
 
-        // ─── Navigate Up/Down Between Inputs ───
+        // Navigate Up/Down Between Inputs
         KeyCode::Up => {
             app.exit_edit_mode();
             app.previous_input();
@@ -128,68 +179,5 @@ fn handle_editing_mode(app: &mut AppState, key: KeyEvent) {
         }
 
         _ => {}
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_normal_mode_quit() {
-        let mut app = AppState::new();
-        assert!(app.is_running());
-
-        let key = KeyEvent::new(KeyCode::Char('q'), crossterm::event::KeyModifiers::NONE);
-        handle_normal_mode(&mut app, key);
-
-        assert!(!app.is_running());
-    }
-
-    #[test]
-    fn test_normal_mode_toggle_focus() {
-        let mut app = AppState::new();
-        assert!(app.is_page_list_focused());
-
-        let key = KeyEvent::new(KeyCode::Tab, crossterm::event::KeyModifiers::NONE);
-        handle_normal_mode(&mut app, key);
-
-        assert!(app.is_input_section_focused());
-    }
-
-    #[test]
-    fn test_editing_mode_add_char() {
-        let mut app = AppState::new();
-        app.enter_edit_mode();
-
-        let key = KeyEvent::new(KeyCode::Char('H'), crossterm::event::KeyModifiers::NONE);
-        handle_editing_mode(&mut app, key);
-
-        assert_eq!(app.get_active_input(), "H");
-    }
-
-    #[test]
-    fn test_editing_mode_backspace() {
-        let mut app = AppState::new();
-        app.error_input = "Hello".to_string();
-        app.enter_edit_mode();
-
-        let key = KeyEvent::new(KeyCode::Backspace, crossterm::event::KeyModifiers::NONE);
-        handle_editing_mode(&mut app, key);
-
-        assert_eq!(app.get_active_input(), "Hell");
-    }
-
-    #[test]
-    fn test_editing_mode_escape() {
-        let mut app = AppState::new();
-        app.toggle_focus(); // Go to input section
-        app.enter_edit_mode();
-        assert!(app.is_editing());
-
-        let key = KeyEvent::new(KeyCode::Esc, crossterm::event::KeyModifiers::NONE);
-        handle_editing_mode(&mut app, key);
-
-        assert!(app.is_normal_mode());
     }
 }

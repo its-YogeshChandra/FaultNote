@@ -4,7 +4,16 @@ version = "0.1.0"
 description = "error logger application "
 authors = ["its-YogeshChandra <pandittheroyal@gmail.com>"]
 license = "MIT"
-edition = "2024"
+edition = "2021"
+
+# Define both library and binary targets
+[lib]
+name = "faultnote"
+path = "src/lib.rs"
+
+[[bin]]
+name = "faultnote"
+path = "src/main.rs"
 
 [dependencies]
 color-eyre = "0.6.3"

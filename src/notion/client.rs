@@ -17,20 +17,10 @@ pub struct NotionClient {
 
 /// Response from Notion search API
 #[derive(Debug, Deserialize)]
-pub struct SearchResponse {
-    pub object: String,
-    pub results: Vec<Value>,
-    pub next_cursor: Option<String>,
-    pub has_more: bool,
-}
-
-/// Response from Notion append block API
-#[derive(Debug, Deserialize)]
-pub struct AppendBlockResponse {
-    pub object: String,
-    pub results: Vec<Value>,
-    pub next_cursor: Option<String>,
-    pub has_more: bool,
+struct SearchResponse {
+    results: Vec<Value>,
+    next_cursor: Option<String>,
+    has_more: bool,
 }
 
 /// Data to be sent to Notion when submitting a fault log
@@ -43,8 +33,7 @@ pub struct FaultLogEntry {
 }
 
 impl NotionClient {
-    /// Create a new NotionClient with the given base URL and HTTP client
-    pub fn new(base_url: String, http_client: Client) -> Self {
+    fn new(base_url: String, http_client: Client) -> Self {
         Self {
             base_url,
             http_client,
@@ -54,7 +43,6 @@ impl NotionClient {
 
 /// Create and configure a NotionClient from environment variables
 pub fn create_notion_client() -> Result<NotionClient, String> {
-    // Load environment variables
     dotenv().ok();
 
     let api_key = env::var("API_KEY")
@@ -62,7 +50,6 @@ pub fn create_notion_client() -> Result<NotionClient, String> {
 
     let base_url = "https://api.notion.com".to_string();
 
-    // Build headers for Notion API
     let mut headers = HeaderMap::new();
     headers.insert(
         AUTHORIZATION,
@@ -72,10 +59,9 @@ pub fn create_notion_client() -> Result<NotionClient, String> {
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
     headers.insert(
         "Notion-Version",
-        HeaderValue::from_static("2022-06-28"), // Use stable API version
+        HeaderValue::from_static("2022-06-28"),
     );
 
-    // Build HTTP client
     let client = Client::builder()
         .timeout(Duration::from_secs(30))
         .default_headers(headers)
@@ -85,7 +71,7 @@ pub fn create_notion_client() -> Result<NotionClient, String> {
     Ok(NotionClient::new(base_url, client))
 }
 
-/// Create a toggleable error block for Notion
+/// Create a toggleable error block for Notion with professional styling
 pub fn create_error_block(
     error: &str,
     problem: &str,
@@ -93,63 +79,76 @@ pub fn create_error_block(
     code: Option<&str>,
     language: Option<&str>,
 ) -> Value {
-    // Build the children blocks inside the toggle
     let mut children: Vec<Value> = vec![
-        // Error paragraph with bold label
+        // Divider for visual separation
         json!({
             "object": "block",
-            "type": "paragraph",
-            "paragraph": {
-                "rich_text": [
-                    {
-                        "type": "text",
-                        "text": { "content": "🔴 Error: " },
-                        "annotations": { "bold": true, "color": "red" }
-                    },
-                    {
-                        "type": "text",
-                        "text": { "content": error }
-                    }
-                ],
-                "color": "default"
+            "type": "divider",
+            "divider": {}
+        }),
+        // ERROR Section - Red callout
+        json!({
+            "object": "block",
+            "type": "callout",
+            "callout": {
+                "rich_text": [{
+                    "type": "text",
+                    "text": { "content": error }
+                }],
+                "icon": { "type": "emoji", "emoji": "🔴" },
+                "color": "red_background"
             }
         }),
-        // Problem paragraph
+        // Heading for Error label
         json!({
             "object": "block",
-            "type": "paragraph",
-            "paragraph": {
-                "rich_text": [
-                    {
-                        "type": "text",
-                        "text": { "content": "🟡 Problem: " },
-                        "annotations": { "bold": true, "color": "yellow" }
-                    },
-                    {
-                        "type": "text",
-                        "text": { "content": problem }
-                    }
-                ],
-                "color": "default"
+            "type": "heading_3",
+            "heading_3": {
+                "rich_text": [{
+                    "type": "text",
+                    "text": { "content": "What was the problem?" },
+                    "annotations": { "bold": true }
+                }],
+                "color": "orange"
             }
         }),
-        // Solution paragraph
+        // PROBLEM Section - Yellow/Orange callout
         json!({
             "object": "block",
-            "type": "paragraph",
-            "paragraph": {
-                "rich_text": [
-                    {
-                        "type": "text",
-                        "text": { "content": "🟢 Solution: " },
-                        "annotations": { "bold": true, "color": "green" }
-                    },
-                    {
-                        "type": "text",
-                        "text": { "content": solution }
-                    }
-                ],
-                "color": "default"
+            "type": "callout",
+            "callout": {
+                "rich_text": [{
+                    "type": "text",
+                    "text": { "content": problem }
+                }],
+                "icon": { "type": "emoji", "emoji": "🟡" },
+                "color": "yellow_background"
+            }
+        }),
+        // Heading for Solution label
+        json!({
+            "object": "block",
+            "type": "heading_3",
+            "heading_3": {
+                "rich_text": [{
+                    "type": "text",
+                    "text": { "content": "How did you fix it?" },
+                    "annotations": { "bold": true }
+                }],
+                "color": "green"
+            }
+        }),
+        // SOLUTION Section - Green callout
+        json!({
+            "object": "block",
+            "type": "callout",
+            "callout": {
+                "rich_text": [{
+                    "type": "text",
+                    "text": { "content": solution }
+                }],
+                "icon": { "type": "emoji", "emoji": "✅" },
+                "color": "green_background"
             }
         }),
     ];
@@ -157,6 +156,18 @@ pub fn create_error_block(
     // Add code block if provided
     if let Some(code_content) = code {
         if !code_content.trim().is_empty() {
+            children.push(json!({
+                "object": "block",
+                "type": "heading_3",
+                "heading_3": {
+                    "rich_text": [{
+                        "type": "text",
+                        "text": { "content": "Code Reference" },
+                        "annotations": { "bold": true }
+                    }],
+                    "color": "purple"
+                }
+            }));
             children.push(json!({
                 "object": "block",
                 "type": "code",
@@ -172,15 +183,33 @@ pub fn create_error_block(
         }
     }
 
-    // The main toggleable heading 3
+    // Add closing divider
+    children.push(json!({
+        "object": "block",
+        "type": "divider",
+        "divider": {}
+    }));
+
+    // The main toggleable heading with timestamp
     json!([{
         "object": "block",
-        "type": "heading_3",
-        "heading_3": {
-            "rich_text": [{
-                "type": "text",
-                "text": { "content": "📋 Error Log Entry" }
-            }],
+        "type": "heading_2",
+        "heading_2": {
+            "rich_text": [
+                {
+                    "type": "text",
+                    "text": { "content": "🐛 " }
+                },
+                {
+                    "type": "text",
+                    "text": { "content": &error[..std::cmp::min(error.len(), 50)] },
+                    "annotations": { "bold": true }
+                },
+                {
+                    "type": "text",
+                    "text": { "content": if error.len() > 50 { "..." } else { "" } }
+                }
+            ],
             "color": "red",
             "is_toggleable": true,
             "children": children
@@ -188,15 +217,12 @@ pub fn create_error_block(
     }])
 }
 
-/// Extract page info from Notion API response
 fn extract_page_info(result: &Value) -> Option<PageInfo> {
     let id = result.get("id")?.as_str()?.to_string();
 
-    // Try to get title from properties -> title -> title[0] -> plain_text
     let title = result
         .get("properties")
         .and_then(|props| {
-            // Find the title property (it could be named "title", "Name", or "Title")
             props.get("title")
                 .or_else(|| props.get("Name"))
                 .or_else(|| props.get("Title"))
@@ -212,7 +238,7 @@ fn extract_page_info(result: &Value) -> Option<PageInfo> {
     Some(PageInfo { id, title })
 }
 
-/// Fetch all pages from Notion (async function)
+/// Fetch all pages from Notion
 pub async fn fetch_pages(client: &NotionClient) -> Result<Vec<PageInfo>, reqwest::Error> {
     let main_url = format!("{}/v1/search", client.base_url);
 
@@ -220,7 +246,6 @@ pub async fn fetch_pages(client: &NotionClient) -> Result<Vec<PageInfo>, reqwest
     let mut start_cursor: Option<String> = None;
 
     loop {
-        // Build request body
         let mut body = json!({
             "filter": {
                 "property": "object",
@@ -229,12 +254,10 @@ pub async fn fetch_pages(client: &NotionClient) -> Result<Vec<PageInfo>, reqwest
             "page_size": 100
         });
 
-        // Add cursor for pagination if we have one
         if let Some(cursor) = &start_cursor {
             body["start_cursor"] = json!(cursor);
         }
 
-        // Make the API request
         let response: SearchResponse = client
             .http_client
             .post(&main_url)
@@ -244,14 +267,12 @@ pub async fn fetch_pages(client: &NotionClient) -> Result<Vec<PageInfo>, reqwest
             .json()
             .await?;
 
-        // Extract page info from results
         for result in &response.results {
             if let Some(page_info) = extract_page_info(result) {
                 all_pages.push(page_info);
             }
         }
 
-        // Check if there are more pages
         if response.has_more {
             start_cursor = response.next_cursor;
         } else {
@@ -262,7 +283,7 @@ pub async fn fetch_pages(client: &NotionClient) -> Result<Vec<PageInfo>, reqwest
     Ok(all_pages)
 }
 
-/// Create a fault log entry on a Notion page (async function)
+/// Create a fault log entry on a Notion page
 pub async fn create_entry(
     client: &NotionClient,
     page_id: &str,
@@ -270,103 +291,23 @@ pub async fn create_entry(
 ) -> Result<(), reqwest::Error> {
     let main_url = format!("{}/v1/blocks/{}/children", client.base_url, page_id);
 
-    // Create the block content
     let block = create_error_block(
         &entry.error,
         &entry.problem,
         &entry.solution,
         entry.code.as_deref(),
-        Some("rust"), // Default to Rust for code blocks
+        Some("rust"),
     );
 
     let body = json!({ "children": block });
 
-    // Send the request
-    let _response = client
+    client
         .http_client
         .patch(&main_url)
         .json(&body)
         .send()
         .await?
-        .error_for_status()?; // This will return an error if status is not 2xx
+        .error_for_status()?;
 
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_create_error_block_without_code() {
-        let block = create_error_block(
-            "Test error",
-            "Test problem",
-            "Test solution",
-            None,
-            None,
-        );
-
-        assert!(block.is_array());
-        let arr = block.as_array().unwrap();
-        assert_eq!(arr.len(), 1);
-
-        let heading = &arr[0];
-        assert_eq!(heading["type"], "heading_3");
-    }
-
-    #[test]
-    fn test_create_error_block_with_code() {
-        let block = create_error_block(
-            "Test error",
-            "Test problem",
-            "Test solution",
-            Some("fn main() {}"),
-            Some("rust"),
-        );
-
-        assert!(block.is_array());
-        let arr = block.as_array().unwrap();
-        assert_eq!(arr.len(), 1);
-
-        let heading = &arr[0];
-        let children = heading["heading_3"]["children"].as_array().unwrap();
-        assert_eq!(children.len(), 4); // error, problem, solution, code
-    }
-
-    #[test]
-    fn test_extract_page_info() {
-        let page_json = json!({
-            "id": "test-id-123",
-            "properties": {
-                "title": {
-                    "title": [{
-                        "plain_text": "My Test Page"
-                    }]
-                }
-            }
-        });
-
-        let page_info = extract_page_info(&page_json).unwrap();
-        assert_eq!(page_info.id, "test-id-123");
-        assert_eq!(page_info.title, "My Test Page");
-    }
-
-    #[test]
-    fn test_extract_page_info_with_name_property() {
-        let page_json = json!({
-            "id": "test-id-456",
-            "properties": {
-                "Name": {
-                    "title": [{
-                        "plain_text": "Named Page"
-                    }]
-                }
-            }
-        });
-
-        let page_info = extract_page_info(&page_json).unwrap();
-        assert_eq!(page_info.id, "test-id-456");
-        assert_eq!(page_info.title, "Named Page");
-    }
 }

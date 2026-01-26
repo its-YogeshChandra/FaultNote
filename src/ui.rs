@@ -1,141 +1,254 @@
-//main ui rendering logic :
-use crate::app::AppState;
-use color_eyre::owo_colors::OwoColorize;
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
+//main ui rendering logic
+use crate::app::{AppState, InputMode};
 use ratatui::{
-    DefaultTerminal, Frame,
-    buffer::Buffer,
+    Frame,
     layout::{Constraint, Layout, Rect},
-    style::{Color, Style, Stylize},
-    symbols::border,
-    text::{Line, Text},
-    widgets::{Block, List, ListItem, ListState, Paragraph, Widget, Wrap},
+    style::{Color, Modifier, Style},
+    text::{Line, Span},
+    widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Wrap},
 };
-use std::io;
 
-//fix the issue
-fn render(mut frame: Frame, app: AppState) {
-    //create main vertical layout
+/// Main render function - called from the main loop
+pub fn render(frame: &mut Frame, app: &AppState) {
+    // Create main vertical layout (3 sections)
     let main_layout = Layout::vertical([
-        Constraint::Length(3),
-        Constraint::Min(10),
-        Constraint::Length(5),
+        Constraint::Length(3),  // Title bar
+        Constraint::Min(10),    // Main content
+        Constraint::Length(3),  // Command bar
     ])
     .split(frame.area());
 
-    // render title bar
-    let title = Block::bordered().title("FaultNote- Error Logger");
-    frame.render_widget(title, main_layout[0]);
+    // Render each section
+    render_title_bar(frame, app, main_layout[0]);
+    render_main_content(frame, app, main_layout[1]);
+    render_command_bar(frame, app, main_layout[2]);
+}
 
-    //split the middle section horizontally
-    let content_layout =
-        Layout::horizontal([Constraint::Percentage(20), Constraint::Percentage(80)])
-            .split(main_layout[1]);
+/// Render the title bar at the top
+fn render_title_bar(frame: &mut Frame, app: &AppState, area: Rect) {
+    let mode_indicator = match app.input_mode {
+        InputMode::Normal => Span::styled(" NORMAL ", Style::default().bg(Color::Blue).fg(Color::White)),
+        InputMode::Editing => Span::styled(" EDITING ", Style::default().bg(Color::Green).fg(Color::Black)),
+    };
 
-    //render page list
-    render_page_list(&mut frame, &app, content_layout[0]);
+    let status = if let Some(msg) = &app.status_message {
+        Span::styled(format!(" {} ", msg), Style::default().fg(Color::Yellow))
+    } else {
+        Span::raw("")
+    };
 
-    //split right section into 4 sub section
-    let right_layout = Layout::vertical([
+    let title_line = Line::from(vec![
+        Span::styled(" 📋 FaultNote ", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        Span::raw("- Error Logger "),
+        mode_indicator,
+        Span::raw(" "),
+        status,
+    ]);
+
+    let title_block = Paragraph::new(title_line)
+        .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::Cyan)));
+
+    frame.render_widget(title_block, area);
+}
+
+/// Render the main content area (page list + input sections)
+fn render_main_content(frame: &mut Frame, app: &AppState, area: Rect) {
+    // Split horizontally: left sidebar (20%) + right content (80%)
+    let content_layout = Layout::horizontal([
+        Constraint::Percentage(25),
+        Constraint::Percentage(75),
+    ])
+    .split(area);
+
+    // Render page list on the left
+    render_page_list(frame, app, content_layout[0]);
+
+    // Render input sections on the right
+    render_input_sections(frame, app, content_layout[1]);
+}
+
+/// Render the Notion pages list on the left sidebar
+fn render_page_list(frame: &mut Frame, app: &AppState, area: Rect) {
+    // Create list items from notion_pages
+    let items: Vec<ListItem> = app
+        .notion_pages
+        .iter()
+        .enumerate()
+        .map(|(idx, page)| {
+            let style = if idx == app.selected_page_index && app.is_page_list_focused() {
+                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::White)
+            };
+            ListItem::new(format!(" {} ", page.title)).style(style)
+        })
+        .collect();
+
+    // Empty state message if no pages
+    let list = if items.is_empty() {
+        List::new(vec![ListItem::new(" No pages loaded").style(Style::default().fg(Color::DarkGray))])
+    } else {
+        List::new(items)
+    };
+
+    // Determine border color based on focus
+    let border_color = if app.is_page_list_focused() {
+        Color::Yellow
+    } else {
+        Color::DarkGray
+    };
+
+    let list = list
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" 📚 Notion Pages ")
+                .border_style(Style::default().fg(border_color)),
+        )
+        .highlight_style(Style::default().bg(Color::Rgb(45, 85, 155)).fg(Color::White))
+        .highlight_symbol("▶ ");
+
+    // Create list state for tracking selection
+    let mut state = ListState::default();
+    if !app.notion_pages.is_empty() {
+        state.select(Some(app.selected_page_index));
+    }
+
+    frame.render_stateful_widget(list, area, &mut state);
+}
+
+/// Render the four input sections on the right
+fn render_input_sections(frame: &mut Frame, app: &AppState, area: Rect) {
+    // Split into 4 vertical sections
+    let sections = Layout::vertical([
         Constraint::Percentage(25),
         Constraint::Percentage(25),
         Constraint::Percentage(25),
         Constraint::Percentage(25),
     ])
-    .split(content_layout[1]);
+    .split(area);
 
-    //render the each input section
+    // Render each input block
     render_input_block(
-        &mut frame,
-        "Error".to_string(),
+        frame,
+        "🔴 Error",
         &app.error_input,
-        app.active_input_field == 0,
-        right_layout[0],
-    );
-    render_input_block(
-        &mut frame,
-        "Problem".to_string(),
-        &app.error_input,
-        app.active_input_field == 0,
-        right_layout[1],
-    );
-    render_input_block(
-        &mut frame,
-        "Error".to_string(),
-        &app.error_input,
-        app.active_input_field == 0,
-        right_layout[2],
-    );
-    render_input_block(
-        &mut frame,
-        "Code".to_string(),
-        &app.error_input,
-        app.active_input_field == 0,
-        right_layout[3],
+        app.active_input_field == 0 && app.is_input_section_focused(),
+        app.active_input_field == 0 && app.is_editing(),
+        sections[0],
     );
 
-    //render the command bar
-    render_command_bar(frame, main_layout[2]);
+    render_input_block(
+        frame,
+        "🟡 Problem",
+        &app.problem_input,
+        app.active_input_field == 1 && app.is_input_section_focused(),
+        app.active_input_field == 1 && app.is_editing(),
+        sections[1],
+    );
+
+    render_input_block(
+        frame,
+        "🟢 Solution",
+        &app.solution_input,
+        app.active_input_field == 2 && app.is_input_section_focused(),
+        app.active_input_field == 2 && app.is_editing(),
+        sections[2],
+    );
+
+    render_input_block(
+        frame,
+        "💻 Code (optional)",
+        &app.code_input,
+        app.active_input_field == 3 && app.is_input_section_focused(),
+        app.active_input_field == 3 && app.is_editing(),
+        sections[3],
+    );
 }
 
-//function to render page list
-fn render_page_list(frame: &mut Frame, app: &AppState, area: Rect) {
-    //create list items from notion_pages
-    let items = app
-        .notion_pages
-        .iter()
-        .map(|page| ListItem::new(page.title.clone()));
-
-    //create list widget with highlight style
-    let list = List::new(items)
-        .block(Block::bordered().title("Notion Pages"))
-        .highlight_style(Style::default().bg(Color::Blue))
-        .highlight_symbol("> ");
-
-    //create list for tracking selection
-    let mut state = ListState::default().with_selected(Some(app.selected_page_index));
-
-    //render a statefull widget
-    &frame.render_stateful_widget(list, area, &mut state);
-}
-
+/// Render a single input block
 fn render_input_block(
     frame: &mut Frame,
-    title: String,
-    content: &String,
-    is_active: bool,
+    title: &str,
+    content: &str,
+    is_focused: bool,
+    is_editing: bool,
     area: Rect,
 ) {
-    //determine border style based on focus
-    let border_style = if is_active {
-        Color::Yellow
+    // Determine styling based on state
+    let (border_color, title_style) = if is_editing {
+        (Color::Green, Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
+    } else if is_focused {
+        (Color::Yellow, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
     } else {
-        Color::Gray
+        (Color::DarkGray, Style::default().fg(Color::Gray))
     };
 
-    //create paragraph with content
-    let paragraph = Paragraph::new(content.to_string())
-        .block(
-            Block::bordered()
-                .title(title)
-                .border_style(Style::default().fg(border_style)),
-        )
-        .wrap(Wrap { trim: true });
+    // Show cursor indicator when editing
+    let display_content = if is_editing {
+        format!("{}▌", content) // Add cursor
+    } else {
+        content.to_string()
+    };
 
-    //render the frame
+    // Create paragraph with content
+    let paragraph = Paragraph::new(display_content)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(Span::styled(format!(" {} ", title), title_style))
+                .border_style(Style::default().fg(border_color)),
+        )
+        .wrap(Wrap { trim: false })
+        .style(Style::default().fg(Color::White));
+
     frame.render_widget(paragraph, area);
 }
 
-fn render_command_bar(mut frame: Frame, area: Rect) {
-    //commands for the value
-    let commands = "[q] Quit  [Tab] Focus  [↑↓] Navigate  [Enter] Submit  [e] Edit  [Esc] Cancel";
+/// Render the command bar at the bottom
+fn render_command_bar(frame: &mut Frame, app: &AppState, area: Rect) {
+    let commands = if app.is_editing() {
+        // Editing mode commands
+        vec![
+            ("Esc", "Exit Edit"),
+            ("Tab", "Next Field"),
+            ("Enter", "New Line"),
+            ("↑↓", "Switch Field"),
+        ]
+    } else {
+        // Normal mode commands
+        vec![
+            ("q", "Quit"),
+            ("Tab", "Switch Focus"),
+            ("↑↓", "Navigate"),
+            ("e/i", "Edit"),
+            ("Enter", "Submit"),
+            ("c", "Clear"),
+        ]
+    };
 
-    //paragraph
-    let paragraph = Paragraph::new(commands)
-        .block(Block::bordered())
-        .style(Style::default().fg(Color::Cyan))
+    // Build command spans with styling
+    let spans: Vec<Span> = commands
+        .iter()
+        .flat_map(|(key, desc)| {
+            vec![
+                Span::styled(format!(" [{}] ", key), Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+                Span::styled(format!("{} ", desc), Style::default().fg(Color::White)),
+                Span::raw(" "),
+            ]
+        })
+        .collect();
+
+    let command_line = Line::from(spans);
+
+    let paragraph = Paragraph::new(command_line)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Commands ")
+                .border_style(Style::default().fg(Color::DarkGray)),
+        )
         .centered();
 
-    //render the widget
     frame.render_widget(paragraph, area);
 }
