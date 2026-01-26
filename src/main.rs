@@ -20,30 +20,59 @@ pub struct App {
     exit: bool,
 }
 
+//main function
 impl App {
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
         while !self.exit {
             terminal.draw(|frame| self.draw(frame))?;
-            self.handle_event();
+            self.handle_events()?;
         }
         Ok(())
     }
 
     fn draw(&self, frame: &mut Frame) {
-        todo!()
+        frame.render_widget(self, frame.area());
     }
 
-    fn handle_event(&self) {}
+    fn handle_events(&mut self) -> io::Result<()> {
+        match event::read()? {
+            Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
+                self.handle_key_events(key_event)
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn handle_key_events(&mut self, key_event: KeyEvent) {
+        match key_event.code {
+            KeyCode::Char('q') => self.exit(),
+            _ => {}
+        }
+    }
+
+    fn exit(&mut self) {
+        self.exit = true;
+    }
 }
 
+//implementing tratit on the app
 impl Widget for &App {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let title = Line::from("Fault Note".bold());
         let block = Block::bordered().title(title.centered());
+        let counter_text = Text::from(vec![Line::from(vec![
+            "Value: ".into(),
+            self.error.to_string().cyan(),
+        ])]);
+
+        //paragraph
+        Paragraph::new(counter_text)
+            .centered()
+            .block(block)
+            .render(area, buf);
     }
 }
-//fix the issue to fix the issue
-fn figure() {}
 
 //main function to run --
 fn main() -> io::Result<()> {
