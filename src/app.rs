@@ -47,7 +47,7 @@ pub enum InputMode {
 //impl for app state
 impl AppState {
     //function to create new state
-    fn new(
+    pub fn new(
         running: bool,
         current_focus: FocusArea,
         notion_pages: Vec<NotionPage>,
@@ -77,25 +77,25 @@ impl AppState {
         }
     }
 
-    fn change_page(value: String) {
+    pub fn change_page(value: String) {
         //check for the value strcut
         if value == "prev".to_string() {
         } else {
         }
     }
 
-    fn change_input(value: String) {
+    pub fn change_input(value: String) {
         //check for the value strcut
         if value == "prev".to_string() {
         } else {
         }
     }
 
-    fn toggle_focus() {
+    pub fn toggle_focus() {
         //change the foucs area from the enum
     }
 
-    fn submit_to_notion() {}
+    pub fn submit_to_notion() {}
 
-    fn clear_inputs() {}
+    pub fn clear_inputs() {}
 }

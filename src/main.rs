@@ -14,75 +14,31 @@ use ratatui::{
 
 mod app;
 mod notion;
+mod ui;
 
 use crate::notion::client;
+use app::AppState;
 
-#[derive(Debug, Default)]
-pub struct App {
-    error: String,
-    problem: String,
-    fix: String,
-    exit: bool,
-}
+fn main() {
+    //initiallize terminal
 
-//main function
-impl App {
-    pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
-        while !self.exit {
-            terminal.draw(|frame| self.draw(frame))?;
-            self.handle_events()?;
-        }
-        Ok(())
-    }
+    //create app instance
+    let app_instance = AppState::new(
+        running,
+        current_focus,
+        notion_pages,
+        selected_page_index,
+        input_mode,
+        error_input,
+        problem_input,
+        solution_input,
+        code_input,
+        active_input_field,
+    );
 
-    fn draw(&self, frame: &mut Frame) {
-        frame.render_widget(self, frame.area());
-    }
+    //fetch notion page
 
-    fn handle_events(&mut self) -> io::Result<()> {
-        match event::read()? {
-            Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
-                self.handle_key_events(key_event)
-            }
-            _ => {}
-        }
-        Ok(())
-    }
+    //mainloop
 
-    fn handle_key_events(&mut self, key_event: KeyEvent) {
-        match key_event.code {
-            KeyCode::Char('q') => self.exit(),
-            _ => {}
-        }
-    }
-
-    fn exit(&mut self) {
-        self.exit = true;
-    }
-}
-
-//implementing tratit on the app
-impl Widget for &App {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        let title = Line::from("Fault Note".bold());
-        let block = Block::bordered().title(title.centered());
-        let counter_text = Text::from(vec![Line::from(vec![
-            "Value: ".into(),
-            self.error.to_string().cyan(),
-        ])]);
-
-        //paragraph
-        Paragraph::new(counter_text)
-            .centered()
-            .block(block)
-            .render(area, buf);
-    }
-}
-
-//main function to run --
-fn main() -> io::Result<()> {
-    let mut terminal = ratatui::init();
-    let app_result = App::default().run(&mut terminal);
-    ratatui::restore();
-    app_result
+    //clean up on exit ;
 }
