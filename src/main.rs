@@ -12,6 +12,11 @@ use ratatui::{
     widgets::{Block, Paragraph, Widget},
 };
 
+mod app;
+mod notion;
+
+use crate::notion::client;
+
 #[derive(Debug, Default)]
 pub struct App {
     error: String,
