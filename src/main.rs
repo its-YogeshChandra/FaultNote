@@ -1,44 +1,51 @@
-//data struct that is being taken from user
+// ═══════════════════════════════════════════════════════════════════════════
+// FaultNote - Error Logger TUI Application
+// ═══════════════════════════════════════════════════════════════════════════
+
 use std::io;
 
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
-use ratatui::{
-    DefaultTerminal, Frame,
-    buffer::Buffer,
-    layout::Rect,
-    style::Stylize,
-    symbols::border,
-    text::{Line, Text},
-    widgets::{Block, Paragraph, Widget},
-};
-
 mod app;
+mod events;
 mod notion;
 mod ui;
 
-use crate::notion::client;
 use app::AppState;
 
-fn main() {
-    //initiallize terminal
+fn main() -> io::Result<()> {
+    // ─────────────────────────────────────────────────────────────────────
+    // 1. Create app instance with defaults
+    // ─────────────────────────────────────────────────────────────────────
+    let mut app = AppState::new();
 
-    //create app instance
-    let app_instance = AppState::new(
-        running,
-        current_focus,
-        notion_pages,
-        selected_page_index,
-        input_mode,
-        error_input,
-        problem_input,
-        solution_input,
-        code_input,
-        active_input_field,
-    );
+    // ─────────────────────────────────────────────────────────────────────
+    // 2. TODO: Initialize terminal
+    //    - enable_raw_mode()
+    //    - Enter alternate screen
+    //    - Create Terminal with CrosstermBackend
+    // ─────────────────────────────────────────────────────────────────────
 
-    //fetch notion page
+    // ─────────────────────────────────────────────────────────────────────
+    // 3. TODO: Fetch Notion pages
+    //    - Call notion::client::fetch_pages()
+    //    - app.set_pages(pages)
+    // ─────────────────────────────────────────────────────────────────────
 
-    //mainloop
+    // ─────────────────────────────────────────────────────────────────────
+    // 4. TODO: Main loop
+    //    while app.is_running() {
+    //        - terminal.draw(|frame| ui::render(frame, &app))
+    //        - events::handle_events(&mut app)
+    //    }
+    // ─────────────────────────────────────────────────────────────────────
 
-    //clean up on exit ;
+    // ─────────────────────────────────────────────────────────────────────
+    // 5. TODO: Cleanup on exit
+    //    - disable_raw_mode()
+    //    - Leave alternate screen
+    // ─────────────────────────────────────────────────────────────────────
+
+    println!("FaultNote initialized successfully!");
+    println!("App state: {:?}", app);
+
+    Ok(())
 }
