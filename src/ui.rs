@@ -9,7 +9,7 @@ use ratatui::{
     style::{Color, Style, Stylize},
     symbols::border,
     text::{Line, Text},
-    widgets::{Block, List, ListItem, ListState, Paragraph, Widget},
+    widgets::{Block, List, ListItem, ListState, Paragraph, Widget, Wrap},
 };
 use std::io;
 
@@ -33,7 +33,7 @@ fn render(mut frame: Frame, app: AppState) {
             .split(main_layout[1]);
 
     //render page list
-    render_page_list(frame, app, content_layout[0]);
+    render_page_list(&mut frame, &app, content_layout[0]);
 
     //split right section into 4 sub section
     let right_layout = Layout::vertical([
@@ -46,29 +46,29 @@ fn render(mut frame: Frame, app: AppState) {
 
     //render the each input section
     render_input_block(
-        frame,
-        "Error",
+        &mut frame,
+        "Error".to_string(),
         &app.error_input,
         app.active_input_field == 0,
         right_layout[0],
     );
     render_input_block(
-        frame,
-        "Problem",
+        &mut frame,
+        "Problem".to_string(),
         &app.error_input,
         app.active_input_field == 0,
         right_layout[1],
     );
     render_input_block(
-        frame,
-        "Error",
+        &mut frame,
+        "Error".to_string(),
         &app.error_input,
         app.active_input_field == 0,
         right_layout[2],
     );
     render_input_block(
-        frame,
-        "Error",
+        &mut frame,
+        "Code".to_string(),
         &app.error_input,
         app.active_input_field == 0,
         right_layout[3],
@@ -78,8 +78,8 @@ fn render(mut frame: Frame, app: AppState) {
     render_command_bar(frame, main_layout[2]);
 }
 
-//function to rende rpage list
-fn render_page_list(frame: Frame, app: AppState, area: String) {
+//function to render page list
+fn render_page_list(frame: &mut Frame, app: &AppState, area: Rect) {
     //create list items from notion_pages
     let items = app
         .notion_pages
@@ -93,5 +93,49 @@ fn render_page_list(frame: Frame, app: AppState, area: String) {
         .highlight_symbol("> ");
 
     //create list for tracking selection
-    let state = ListState::default().with_selected(Some(app.selected_page_index));
+    let mut state = ListState::default().with_selected(Some(app.selected_page_index));
+
+    //render a statefull widget
+    &frame.render_stateful_widget(list, area, &mut state);
+}
+
+fn render_input_block(
+    frame: &mut Frame,
+    title: String,
+    content: &String,
+    is_active: bool,
+    area: Rect,
+) {
+    //determine border style based on focus
+    let border_style = if is_active {
+        Color::Yellow
+    } else {
+        Color::Gray
+    };
+
+    //create paragraph with content
+    let paragraph = Paragraph::new(content.to_string())
+        .block(
+            Block::bordered()
+                .title(title)
+                .border_style(Style::default().fg(border_style)),
+        )
+        .wrap(Wrap { trim: true });
+
+    //render the frame
+    frame.render_widget(paragraph, area);
+}
+
+fn render_command_bar(mut frame: Frame, area: Rect) {
+    //commands for the value
+    let commands = "[q] Quit  [Tab] Focus  [↑↓] Navigate  [Enter] Submit  [e] Edit  [Esc] Cancel";
+
+    //paragraph
+    let paragraph = Paragraph::new(commands)
+        .block(Block::bordered())
+        .style(Style::default().fg(Color::Cyan))
+        .centered();
+
+    //render the widget
+    frame.render_widget(paragraph, area);
 }
