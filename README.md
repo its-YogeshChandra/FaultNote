@@ -1,4 +1,4 @@
-# 🔴 FaultNote
+# FaultNote
 
 A terminal-based error logger that helps you document errors, problems, and solutions directly to your Notion pages.
 
